@@ -35,7 +35,7 @@
       height: var(--header-h);
       box-shadow: 0 4px 20px rgba(0,0,0,0.06);
       border-bottom: 2px solid transparent;
-      border-image: linear-gradient(90deg, #7F00FF, #E100FF) 1;
+      border-image: linear-gradient(90deg, #7F00FF, #E100FF) 1; /* Garis aksen Gen Z */
       display: flex; flex-direction: column; justify-content: center;
     }
 
@@ -103,7 +103,7 @@
       margin: 12px 0; line-height: 1.4;
     }
 
-    /* TOMBOL LINK */
+    /* TOMBOL LINK (1 Baris Horizontal) */
     .button-group { display: flex; gap: 10px; flex-wrap: nowrap; }
     .btn-aff {
       flex: 1; border-radius: 12px; padding: 10px; font-size: 11px;
@@ -121,11 +121,11 @@
     }
     .fav-icon.active { color: #ff4757; }
 
-    /* FOOTER TETAP */
+    /* FOOTER TETAP - WARNA GEN Z */
     .sticky-footer {
       position: fixed; bottom: 0; left: 0; right: 0;
       height: var(--footer-h);
-      background: linear-gradient(90deg, #7F00FF, #FF007F, #FF8C00);
+      background: linear-gradient(90deg, #7F00FF, #FF007F, #FF8C00); /* Y2K / GenZ Vibe */
       background-size: 200% 200%;
       animation: gradientBG 5s ease infinite;
       color: #ffffff;
@@ -140,7 +140,7 @@
       100% { background-position: 0% 50%; }
     }
 
-    /* CUSTOM MODAL */
+    /* CUSTOM MODAL (MENGGANTIKAN ALERT) */
     .modal-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(15, 23, 42, 0.6); z-index: 2000;
@@ -239,78 +239,32 @@
     deferredPrompt = e;
   });
 
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzDmymu8ED4diEPL9-dX8CZ9sQU67_wknwhFgJNHTgWZ52Zw04x11ALNXwD3iGK4A8q/exec';
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ9ETE1X3iKPNOXuwVC0LIxjt01bMb_PbJf8P8srgmaFyqS9HyWrFgnLNAehl1wDY4fouEijqOj0Bfz/pub?output=csv';
 
-  async function init() {
-    try {
-      const response = await fetch(API_URL);
-      const text = await response.text();
-      
-      let rawData;
-      try {
-        const json = JSON.parse(text);
-        rawData = Array.isArray(json) ? json : (json.data || json.rows || []);
-      } catch (e) {
-        // Fallback jika Apps Script mengembalikan teks CSV
-        const parsed = Papa.parse(text, { header: false });
-        rawData = parsed.data;
-      }
-
-      // Jika data berupa array of arrays dan baris pertama adalah header teks, buang baris pertama
-      if (rawData.length > 0 && Array.isArray(rawData[0])) {
-        const firstRowStr = rawData[0].join(' ').toLowerCase();
-        if (firstRowStr.includes('nama') || firstRowStr.includes('kategori')) {
-          localData = rawData.slice(1);
+  function init() {
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: false,
+      complete: function(results) {
+        localData = results.data.slice(1); 
+        
+        // Baca footer dari Kolom K Baris 2 (Indeks 10 dalam array)
+        if(localData[0] && localData[0][10]) {
+            document.getElementById('footerText').innerText = localData[0][10];
         } else {
-          localData = rawData;
+            document.getElementById('footerText').innerText = "✨ Temukan barang impianmu disini! ✨";
         }
-      } else {
-        localData = rawData;
-      }
 
-      // Ambil teks footer dari baris pertama indeks ke-10 (Kolom K) atau property footer
-      let footerVal = "";
-      if (localData.length > 0) {
-        footerVal = getField(localData[0], 10, ['footer', 'Footer', 'pesanFooter', 'pesan_footer']);
+        renderData(localData);
       }
-      
-      if (footerVal) {
-        document.getElementById('footerText').innerText = footerVal;
-      } else {
-        document.getElementById('footerText').innerText = "✨ Temukan barang impianmu disini! ✨";
-      }
-
-      renderData(localData);
-    } catch (err) {
-      console.error("Gagal memuat data:", err);
-      document.getElementById('productList').innerHTML = `<div class="text-center py-5 text-danger small">Gagal memuat data katalog. Periksa koneksi internet atau deployment Apps Script.</div>`;
-      document.getElementById('footerText').innerText = "⚠️ Gagal memuat data";
-    }
-  }
-
-  // Fungsi helper untuk mendukung format Array indeks maupun Object JSON dari Apps Script
-  function getField(row, index, keys) {
-    if (!row) return "";
-    if (Array.isArray(row)) {
-      return row[index] !== undefined && row[index] !== null ? row[index] : "";
-    } else if (typeof row === 'object') {
-      for (let k of keys) {
-        if (row[k] !== undefined && row[k] !== null) return row[k];
-      }
-      const values = Object.values(row);
-      if (values[index] !== undefined && values[index] !== null) return values[index];
-    }
-    return "";
+    });
   }
 
   function renderData(data) {
     const list = document.getElementById('productList');
     let html = '';
     
-    const validData = data.filter(row => {
-      const nama = getField(row, 0, ['nama', 'Nama', 'name', 'Name', 'nama_barang', 'Barang']);
-      return nama && nama.toString().trim() !== "";
-    });
+    const validData = data.filter(row => row[0] && row[0].trim() !== "");
 
     if(validData.length === 0) {
       list.innerHTML = `<div class="text-center py-5 text-muted small">Barang tidak ditemukan.</div>`;
@@ -318,17 +272,21 @@
     }
 
     validData.forEach((row) => {
-      const nama = getField(row, 0, ['nama', 'Nama', 'name', 'Name', 'nama_barang', 'Barang']);
-      const kategori = getField(row, 1, ['kategori', 'Kategori', 'category', 'Category']);
-      const merk = getField(row, 2, ['merk', 'Merk', 'brand', 'Brand']);
-      const shopee = getField(row, 3, ['shopee', 'Shopee', 'link_shopee', 'shopee_link']);
-      const tiktok = getField(row, 4, ['tiktok', 'TikTok', 'link_tiktok', 'tiktok_link']);
-      const cekOfficial = getField(row, 6, ['cekOfficial', 'official', 'Official', 'isOfficial', 'CekOfficial']);
+      // Pemetaan Kolom Google Sheets ke Array:
+      // A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10
+      const nama = row[0];
+      const kategori = row[1];
+      const merk = row[2];
+      const shopee = row[3];
+      const tiktok = row[4];
+      const kataKunci = row[5];
+      const cekOfficial = row[6]; // Keterangan Official diambil dari Kolom G (Index 6)
 
       const isFav = favorites.includes(nama);
       const heartClass = isFav ? 'fas fa-heart active' : 'far fa-heart';
       
-      const isOfficial = (cekOfficial && (cekOfficial.toString().toLowerCase().includes('ya') || cekOfficial.toString().toLowerCase().includes('official')));
+      // Logika Penanda Official Store dari kolom G
+      const isOfficial = (cekOfficial && (cekOfficial.toLowerCase().includes('ya') || cekOfficial.toLowerCase().includes('official')));
       const officialBadgeHTML = isOfficial ? `<span class="official-badge"><i class="fas fa-check-circle"></i> Official</span>` : '';
 
       let color = "#94a3b8";
@@ -367,15 +325,10 @@
     const cat = document.getElementById('categoryDropdown').value;
 
     const filtered = localData.filter(row => {
-      const nama = getField(row, 0, ['nama', 'Nama', 'name', 'Name', 'nama_barang', 'Barang']);
-      if(!nama) return false;
-      const kategori = getField(row, 1, ['kategori', 'Kategori', 'category', 'Category']);
-      const merk = getField(row, 2, ['merk', 'Merk', 'brand', 'Brand']);
-      const kataKunci = getField(row, 5, ['kataKunci', 'kata_kunci', 'keywords', 'keyword', 'KataKunci']);
-
-      const matchSearch = (nama.toString() + (merk || "") + (kataKunci || "")).toLowerCase().includes(term);
-      const matchCat = (cat === 'Semua' || kategori === cat);
-      const matchFav = !showFavOnly || favorites.includes(nama);
+      if(!row[0]) return false;
+      const matchSearch = (row[0] + (row[2] || "") + (row[5] || "")).toString().toLowerCase().includes(term);
+      const matchCat = (cat === 'Semua' || row[1] === cat);
+      const matchFav = !showFavOnly || favorites.includes(row[0]);
       
       return matchSearch && matchCat && matchFav;
     });
@@ -403,6 +356,7 @@
     search();
   }
 
+  // LOGIKA CUSTOM MODAL
   function openModal(title, textHTML) {
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalBody').innerHTML = textHTML;
